@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Logger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom, #1a1a1a, #2d2d2d);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #4a4a4a;
+        }
+
+        button.clear {
+            background: #dc2626;
+        }
+
+        button.clear:hover {
+            background: #ef4444;
+        }
+
+        button.download {
+            background: #2563eb;
+        }
+
+        button.download:hover {
+            background: #3b82f6;
+        }
+
+        .log-container {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instruction {
+            color: #9ca3af;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        #keyLog {
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .log-entry .key {
+            font-family: monospace;
+            background: #3a3a3a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+
+        .log-entry .timestamp {
+            color: #9ca3af;
+            font-size: 12px;
+            float: right;
+        }
+
+        .log-entry .details {
+            margin-top: 5px;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .log-entry .type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .log-entry .type.keydown {
+            background: #065f46;
+            color: #34d399;
+        }
+
+        .log-entry .type.keyup {
+            background: #991b1b;
+            color: #f87171;
+        }
+
+        #stats {
+            color: #9ca3af;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Key Logger</h1>
+            <div class="controls">
+                <button id="downloadBtn" class="download">Download Log</button>
+                <button id="clearBtn" class="clear">Clear Log</button>
+            </div>
+        </div>
+
+        <div class="log-container">
+            <div class="instruction">Press any key to see the event details</div>
+            <div id="keyLog"></div>
+        </div>
+
+        <div id="stats">
+            Total keys logged: <span id="keyCount">0</span>
+        </div>
+    </div>
+
+    <script>
+        class KeyLogger {
+            constructor() {
+                this.logContainer = document.getElementById('keyLog');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.downloadBtn = document.getElementById('downloadBtn');
+                this.keyCountElement = document.getElementById('keyCount');
+                this.logs = [];
+                this.keyCount = 0;
+
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                document.addEventListener('keydown', (e) => this.handleKeyEvent(e, 'keydown'));
+                document.addEventListener('keyup', (e) => this.handleKeyEvent(e, 'keyup'));
+                this.clearBtn.addEventListener('click', () => this.clearLog());
+                this.downloadBtn.addEventListener('click', () => this.downloadLog());
+            }
+
+            handleKeyEvent(event, type) {
+                // Prevent default behavior for some key combinations
+                if (event.ctrlKey && (event.key === 's' || event.key === 'p')) {
+                    event.preventDefault();
+                }
+
+                const logEntry = {
+                    key: event.key,
+                    code: event.code,
+                    type: type,
+                    timestamp: new Date().toLocaleTimeString(),
+                    ctrlKey: event.ctrlKey,
+                    altKey: event.altKey,
+                    shiftKey: event.shiftKey,
+                    metaKey: event.metaKey
+                };
+
+                this.logs.unshift(logEntry);
+                this.displayLogEntry(logEntry);
+                this.updateKeyCount();
+            }
+
+            displayLogEntry(entry) {
+                const logElement = document.createElement('div');
+                logElement.className = 'log-entry';
+
+                const modifiers = [];
+                if (entry.ctrlKey) modifiers.push('Ctrl');
+                if (entry.altKey) modifiers.push('Alt');
+                if (entry.shiftKey) modifiers.push('Shift');
+                if (entry.metaKey) modifiers.push('Meta');
+
+                const modifierText = modifiers.length > 0 ? `[${modifiers.join('+')}] ` : '';
+
+                logElement.innerHTML = `
+                    <span class="key">${modifierText}${entry.key}</span>
+                    <span class="type ${entry.type}">${entry.type}</span>
+                    <span class="timestamp">${entry.timestamp}</span>
+                    <div class="details">
+                        <div>Code: ${entry.code}</div>
+                    </div>
+                `;
+
+                this.logContainer.insertBefore(logElement, this.logContainer.firstChild);
+            }
+
+            clearLog() {
+                this.logContainer.innerHTML = '';
+                this.logs = [];
+                this.keyCount = 0;
+                this.updateKeyCount();
+            }
+
+            downloadLog() {
+                const logText = this.logs.map(entry => {
+                    return `Time: ${entry.timestamp}, Key: ${entry.key}, Code: ${entry.code}, Type: ${entry.type}`;
+                }).join('\n');
+
+                const blob = new Blob([logText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `keylog_${new Date().toISOString().slice(0,10)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            updateKeyCount() {
+                this.keyCount = this.logs.length;
+                this.keyCountElement.textContent = this.keyCount;
+            }
+        }
+
+        // Initialize the key logger when the page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new KeyLogger();
+        });
+    </script>
+</body>
+</html>
+
